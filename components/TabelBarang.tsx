@@ -37,9 +37,21 @@ export default function TabelBarang({ searchQuery, setSearchQuery, filteredData,
                 </tr>
               ))
             : <tr>
-                <td colSpan={4} className="px-5 py-12 text-center">
-                  <p className="text-slate-400 font-medium mb-3">Pencarian "{searchQuery}" tidak ditemukan di database HPS.</p>
-                  <button onClick={() => setShowMoModal(true)} className="text-indigo-600 font-bold hover:text-indigo-800 underline underline-offset-4">Klik di sini untuk bertanya ke MO</button>
+                <td colSpan={4} className="px-5 py-16 text-center">
+                  <p className="text-slate-500 font-medium mb-4 text-base">Pencarian "{searchQuery}" tidak ditemukan di database HPS.</p>
+                  <div className="flex flex-col md:flex-row items-center justify-center gap-3">
+                    <button onClick={() => setShowMoModal(true)} className="bg-indigo-50 text-indigo-700 px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-100 transition-colors flex items-center gap-2">
+                      💬 Tanya MO
+                    </button>
+                    <a 
+                      href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(searchQuery)}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="bg-amber-50 text-amber-700 px-5 py-2.5 rounded-xl font-bold hover:bg-amber-100 transition-colors flex items-center gap-2"
+                    >
+                      🛒 Cek Google Shopping
+                    </a>
+                  </div>
                 </td>
               </tr>}
           </tbody>

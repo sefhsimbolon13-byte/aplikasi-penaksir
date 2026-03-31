@@ -63,3 +63,23 @@ export const hitungTaksiran = (selectedItem: any, kondisi: any) => {
 
   return { rincian, isIphone, isLaptop, isAndroid };
 };
+
+// KAMUS KASTA MEREK (Tier System)
+export const getPlafonMerek = (namaBarang: string) => {
+  const nama = namaBarang.toLowerCase();
+  
+  // KASTA ATAS (Plafon 60%)
+  const kastaAtas = ['apple', 'iphone', 'macbook', 'rog', 'samsung s', 'samsung z', 'samsung flip', 'samsung fold'];
+  if (kastaAtas.some(kw => nama.includes(kw))) {
+    return { persen: 0.60, label: '🌟 Kasta Atas (Stabil)', warna: 'text-emerald-600' };
+  }
+
+  // KASTA BAWAH / RAWAN (Plafon 50%)
+  const kastaBawah = ['axioo', 'advan', 'infinix', 'itel', 'tecno', 'evercoss', 'zyrex', 'pongo'];
+  if (kastaBawah.some(kw => nama.includes(kw))) {
+    return { persen: 0.50, label: '⚠️ Kasta Bawah (Anjlok)', warna: 'text-rose-600' };
+  }
+
+  // KASTA MENENGAH (Plafon 55%) - Default untuk merek lainnya (Oppo, Vivo, Xiaomi, dll)
+  return { persen: 0.55, label: '⭐ Kasta Menengah (Standar)', warna: 'text-amber-600' };
+};
