@@ -43,17 +43,13 @@ export default function Home() {
   }, []);
 
   // LOGIC FUNCTIONS
-// LOGIC FUNCTIONS
   const handleFileUpload = (e: any) => {
-    const file = e.target.files?.[0]; 
-    if (!file) return;
-    
+    const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result;
-      if (typeof text !== 'string') return; // Memastikan data murni string biar TypeScript gak marah
+      if (typeof text !== 'string') return;
 
-      // Mengembalikan fitur pintar pendeteksi baris judul HPS
       const lines = text.split('\n');
       let bestScore = 0;
       let headerIndex = 0;
@@ -68,33 +64,44 @@ export default function Home() {
 
       const cleanCsvText = lines.slice(headerIndex).join('\n');
 
-      Papa.parse(cleanCsvText, { 
-        header: true, 
-        skipEmptyLines: true, 
-        complete: (res: any) => {
-          const parsed = res.data.map((row: any) => ({
-            group: row.GROUP || row.JENIS || '', 
-            merek: row.MEREK || row.MERK || '',
-            tipe: row.TYPE || row.TIPE || '', 
-            hps: row.HPS || row.HARGA || '0',
-            keterangan: row.KET || row.GRAM || row.SYARAT || ''
-          }));
-          setHpsData([...hpsData, ...parsed]); 
-          alert("Database HPS berhasil di-update!");
-        }
-      });
+      Papa.parse(cleanCsvText, { header: true, skipEmptyLines: true, complete: (res: any) => {
+        const parsed = res.data.map((row: any) => ({
+          group: row.GROUP || row.JENIS || '', merek: row.MEREK || row.MERK || '',
+          tipe: row.TYPE || row.TIPE || '', hps: row.HPS || row.HARGA || '0',
+          keterangan: row.KET || row.GRAM || row.SYARAT || ''
+        }));
+        setHpsData([...hpsData, ...parsed]); alert("Database di-update!");
+      }});
     };
     reader.readAsText(file);
   };
 
   const simpanKeRiwayat = (nama: string, harga: number) => {
-    const newR = [{ id: Date.now(), waktu: new Date().toLocaleTimeString('id-ID'), nama, harga }, ...riwayat];
-    setRiwayat(newR); localStorage.setItem('riwayatBGI', JSON.stringify(newR)); alert("Disimpan!");
+    // MENGEMBALIKAN FORMAT JAM YANG RAPI (HH:MM)
+    const waktuFormat = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const newR = [{ id: Date.now(), waktu: waktuFormat, nama, harga }, ...riwayat];
+    setRiwayat(newR); 
+    localStorage.setItem('riwayatBGI', JSON.stringify(newR)); 
+    alert("✅ Berhasil disimpan ke Riwayat!");
   };
 
   const copyToWAMo = () => {
     const txt = generateTeksWAMo(profil, moForm);
-    navigator.clipboard.writeText(txt).then(() => { alert("Format WA Disalin!"); setShowMoModal(false); });
+    navigator.clipboard.writeText(txt).then(() => { 
+      alert("✅ Laporan untuk MO berhasil disalin!"); 
+      setShowMoModal(false); 
+    }).catch(() => alert("Gagal menyalin."));
+  };
+
+  // MENGEMBALIKAN FITUR AUTO-TITIK RUPIAH UNTUK FORM MO
+  const handleFormatRupiahMO = (field: 'permintaan' | 'taksiran', value: string) => {
+    const rawValue = value.replace(/\D/g, '');
+    if (!rawValue) {
+      setMoForm({...moForm, [field]: ''});
+      return;
+    }
+    const formatted = Number(rawValue).toLocaleString('id-ID');
+    setMoForm({...moForm, [field]: formatted});
   };
 
   const filteredData = hpsData.filter(i => `${i.merek} ${i.tipe}`.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -112,7 +119,10 @@ export default function Home() {
       {showSopModal && <SopModal setShowSopModal={setShowSopModal} />}
       {showRiwayatModal && <RiwayatModal riwayat={riwayat} hapusRiwayat={() => setRiwayat([])} setShowRiwayatModal={setShowRiwayatModal} />}
       {showSettingsModal && <PengaturanModal profil={profil} setProfil={setProfil} handleSaveProfil={() => {localStorage.setItem('profilBGI', JSON.stringify(profil)); setShowSettingsModal(false);}} setShowSettingsModal={setShowSettingsModal} />}
-      {showMoModal && <MoModal moForm={moForm} setMoForm={setMoForm} handleFormatRupiahMO={(f, v) => setMoForm({...moForm, [f]: v})} copyToWAMo={copyToWAMo} setShowMoModal={setShowMoModal} />}
+      
+      {/* MENGHUBUNGKAN KEMBALI FUNGSI RUPIAH KE MODAL MO */}
+      {showMoModal && <MoModal moForm={moForm} setMoForm={setMoForm} handleFormatRupiahMO={handleFormatRupiahMO} copyToWAMo={copyToWAMo} setShowMoModal={setShowMoModal} />}
+      
       {selectedItem && <KalkulatorModal selectedItem={selectedItem} kondisi={kondisi} setKondisi={setKondisi} rincian={calcResult?.rincian} isIphone={calcResult?.isIphone || false} isLaptop={calcResult?.isLaptop || false} isAndroid={calcResult?.isAndroid || false} simpanKeRiwayat={simpanKeRiwayat} onClose={() => setSelectedItem(null)} />}
     </main>
   );
