@@ -113,7 +113,7 @@ export default function Home() {
       {showRiwayatModal && <RiwayatModal riwayat={riwayat} hapusRiwayat={() => setRiwayat([])} setShowRiwayatModal={setShowRiwayatModal} />}
       {showSettingsModal && <PengaturanModal profil={profil} setProfil={setProfil} handleSaveProfil={() => {localStorage.setItem('profilBGI', JSON.stringify(profil)); setShowSettingsModal(false);}} setShowSettingsModal={setShowSettingsModal} />}
       {showMoModal && <MoModal moForm={moForm} setMoForm={setMoForm} handleFormatRupiahMO={(f, v) => setMoForm({...moForm, [f]: v})} copyToWAMo={copyToWAMo} setShowMoModal={setShowMoModal} />}
-      {selectedItem && <KalkulatorModal selectedItem={selectedItem} kondisi={kondisi} setKondisi={setKondisi} rincian={calcResult?.rincian} isIphone={calcResult?.isIphone} isLaptop={calcResult?.isLaptop} isAndroid={calcResult?.isAndroid} simpanKeRiwayat={simpanKeRiwayat} onClose={() => setSelectedItem(null)} />}
+      {selectedItem && <KalkulatorModal selectedItem={selectedItem} kondisi={kondisi} setKondisi={setKondisi} rincian={calcResult?.rincian} isIphone={calcResult?.isIphone || false} isLaptop={calcResult?.isLaptop || false} isAndroid={calcResult?.isAndroid || false} simpanKeRiwayat={simpanKeRiwayat} onClose={() => setSelectedItem(null)} />}
     </main>
   );
 }
