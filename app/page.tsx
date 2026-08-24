@@ -1,0 +1,183 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useHpsStore } from '../store/useHpsStore';
+import Papa from 'papaparse';
+
+// IMPORT UTILS
+import { hitungTaksiran } from '../utils/kalkulasi';
+import { generateTeksWAMo } from '../utils/formatWA';
+
+// IMPORT COMPONENTS
+import Header from '../components/Header';
+import UploadCSV from '../components/UploadCSV';
+import TabelBarang from '../components/TabelBarang';
+
+// IMPORT MODALS
+import SopModal from '../components/modals/SopModal';
+import RiwayatModal from '../components/modals/RiwayatModal';
+import PengaturanModal from '../components/modals/PengaturanModal';
+import MoModal from '../components/modals/MoModal';
+import KalkulatorModal from '../components/modals/KalkulatorModal';
+
+export default function Home() {
+  const { hpsData, setHpsData } = useHpsStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  
+  // MODAL STATES
+  const [showSopModal, setShowSopModal] = useState(false);
+  const [showRiwayatModal, setShowRiwayatModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showMoModal, setShowMoModal] = useState(false);
+
+  // DATA STATES
+  const [riwayat, setRiwayat] = useState<any[]>([]);
+  const [profil, setProfil] = useState({ cabang: 'BGI 16', penaksir: 'Yosefh', saksi: 'Andre', pemutus: '@~Maret @~Togong U Sembiring' });
+  const [moForm, setMoForm] = useState({ namaBarang: '', tipeJenis: '', kondisi: '', kelengkapan: '', permintaan: '', taksiran: '' });
+  const [kondisi, setKondisi] = useState({ batangan: false, noAdaptor: false, noKabel: false, bateraiDrop: false, fisik: 'mulus', noTrueTone: false, noFaceId: false, bhService: false, icloudTerkunci: false, keyboardError: false, layarMinus: false, portError: false, layarShadow: false, touchscreenError: false });
+
+  // --- 1. UPDATE USEEFFECT (Agar load data otomatis saat web dibuka) ---
+  useEffect(() => {
+    const p = localStorage.getItem('profilBGI'); if (p) setProfil(JSON.parse(p));
+    const r = localStorage.getItem('riwayatBGI'); if (r) setRiwayat(JSON.parse(r));
+    
+    // Cek apakah ada data HPS tersimpan di memori laptop
+    const hpsLokal = localStorage.getItem('hpsDataBGI');
+    if (hpsLokal) {
+      setHpsData(JSON.parse(hpsLokal)); // Langsung tampilkan tanpa perlu klik tombol
+    }
+  }, []);
+
+  // LOGIC FUNCTIONS
+  const handleFileUpload = (e: any) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result;
+      if (typeof text !== 'string') return;
+
+      const lines = text.split('\n');
+      let bestScore = 0;
+      let headerIndex = 0;
+      const keywords = ['NO', 'GROUP', 'JENIS', 'MEREK', 'MERK', 'TYPE', 'TIPE', 'HPS', 'HARGA', 'KARAT'];
+
+      for (let i = 0; i < Math.min(lines.length, 20); i++) {
+        let score = 0;
+        const upperLine = lines[i].toUpperCase();
+        keywords.forEach(kw => { if (upperLine.includes(kw)) score++; });
+        if (score > bestScore) { bestScore = score; headerIndex = i; }
+      }
+
+      const cleanCsvText = lines.slice(headerIndex).join('\n');
+
+      Papa.parse(cleanCsvText, { header: true, skipEmptyLines: true, complete: (res: any) => {
+        const parsed = res.data.map((row: any) => ({
+          group: row.GROUP || row.JENIS || '', merek: row.MEREK || row.MERK || '',
+          tipe: row.TYPE || row.TIPE || '', hps: row.HPS || row.HARGA || '0',
+          keterangan: row.KET || row.GRAM || row.SYARAT || ''
+        }));
+        setHpsData([...hpsData, ...parsed]); alert("Database di-update!");
+      }});
+    };
+    reader.readAsText(file);
+  };
+
+  // --- 2. UPDATE FUNGSI SINKRONISASI ---
+  const syncHpsOtomatis = async () => {
+    try {
+      alert("Menarik data HPS terbaru dari server pusat...");
+      
+      // Memanggil "jalan tikus" lokal (API Route buatanmu di app/api/hps/route.ts)
+      const response = await fetch('/api/hps'); 
+      const json = await response.json();
+      
+      if (json.status === "Sukses") {
+        const dataPusat = json.harga_pasar_sementara.data;
+        
+        const dataFormatBaru = dataPusat.map((item: any) => ({
+          group: item.kategori || '',
+          merek: item.merek || '',
+          tipe: item.nama_barang || '',
+          hps: item.harga || '0',
+          keterangan: item.keterangan || ''
+        }));
+
+        setHpsData(dataFormatBaru); 
+        
+        // SIMPAN KE MEMORI BROWSER (Agar aman saat di-reload)
+        localStorage.setItem('hpsDataBGI', JSON.stringify(dataFormatBaru));
+        
+        alert("✅ Data HPS berhasil disinkronkan dan disimpan!");
+      } else {
+        alert("❌ Terjadi kesalahan struktur data dari pusat.");
+      }
+    } catch (error) {
+      alert("❌ Gagal menyinkronkan data.");
+      console.error("Error fetching HPS:", error);
+    }
+  };
+  // ---------------------------------------------------------
+
+  const simpanKeRiwayat = (nama: string, harga: number) => {
+    const waktuFormat = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const newR = [{ id: Date.now(), waktu: waktuFormat, nama, harga }, ...riwayat];
+    setRiwayat(newR); 
+    localStorage.setItem('riwayatBGI', JSON.stringify(newR)); 
+    alert("✅ Berhasil disimpan ke Riwayat!");
+  };
+
+  const copyToWAMo = () => {
+    const txt = generateTeksWAMo(profil, moForm);
+    navigator.clipboard.writeText(txt).then(() => { 
+      alert("✅ Laporan untuk MO berhasil disalin!"); 
+      setShowMoModal(false); 
+    }).catch(() => alert("Gagal menyalin."));
+  };
+
+  const handleFormatRupiahMO = (field: 'permintaan' | 'taksiran', value: string) => {
+    const rawValue = value.replace(/\D/g, '');
+    if (!rawValue) {
+      setMoForm({...moForm, [field]: ''});
+      return;
+    }
+    const formatted = Number(rawValue).toLocaleString('id-ID');
+    setMoForm({...moForm, [field]: formatted});
+  };
+
+  const filteredData = hpsData.filter(i => `${i.merek} ${i.tipe}`.toLowerCase().includes(searchQuery.toLowerCase()));
+  const calcResult = hitungTaksiran(selectedItem, kondisi);
+
+  return (
+    <main className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans">
+      <div className="max-w-6xl mx-auto bg-white p-5 md:p-8 rounded-3xl shadow-xl border border-slate-100">
+        <Header setShowRiwayatModal={setShowRiwayatModal} setShowMoModal={setShowMoModal} setShowSettingsModal={setShowSettingsModal} setShowSopModal={setShowSopModal} />
+        <div className="mt-6 mb-4 flex flex-col md:flex-row items-center justify-between bg-blue-50 p-4 rounded-xl border border-blue-100">
+          <div className="mb-3 md:mb-0">
+            <h3 className="font-bold text-blue-800">Integrasi Data Pusat</h3>
+            <p className="text-sm text-blue-600">Tarik harga pasar terbaru langsung dari server.</p>
+          </div>
+          <button 
+            onClick={syncHpsOtomatis}
+            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all duration-200"
+          >
+            🔄 Sinkronkan Sekarang
+          </button>
+        </div>
+        {/* ------------------------------- */}
+
+        <UploadCSV handleFileUpload={handleFileUpload} hpsDataLength={hpsData.length} handleResetData={() => setHpsData([])} />
+        <TabelBarang searchQuery={searchQuery} setSearchQuery={setSearchQuery} filteredData={filteredData} handleTaksir={setSelectedItem} setShowMoModal={setShowMoModal} />
+      </div>
+
+      {/* RENDER SEMUA MODAL */}
+      {showSopModal && <SopModal setShowSopModal={setShowSopModal} />}
+      {showRiwayatModal && <RiwayatModal riwayat={riwayat} hapusRiwayat={() => setRiwayat([])} setShowRiwayatModal={setShowRiwayatModal} />}
+      {showSettingsModal && <PengaturanModal profil={profil} setProfil={setProfil} handleSaveProfil={() => {localStorage.setItem('profilBGI', JSON.stringify(profil)); setShowSettingsModal(false);}} setShowSettingsModal={setShowSettingsModal} />}
+      
+      {showMoModal && <MoModal moForm={moForm} setMoForm={setMoForm} handleFormatRupiahMO={handleFormatRupiahMO} copyToWAMo={copyToWAMo} setShowMoModal={setShowMoModal} />}
+      
+      {selectedItem && <KalkulatorModal selectedItem={selectedItem} kondisi={kondisi} setKondisi={setKondisi} rincian={calcResult?.rincian} isIphone={calcResult?.isIphone || false} isLaptop={calcResult?.isLaptop || false} isAndroid={calcResult?.isAndroid || false} simpanKeRiwayat={simpanKeRiwayat} onClose={() => setSelectedItem(null)} />}
+    </main>
+  );
+}
